@@ -1,0 +1,19 @@
+{
+  "name": "File Station",
+  "version": "1.0.0.6",
+  "slug": "file_station",
+  "description": "Update file cache station!",
+  "arch": ["armhf", "armv7", "aarch64", "amd64", "i386"],
+  "startup": "application",
+  "boot": "auto",
+  "ports": {
+    "80/tcp": 80
+  },
+  "map": ["share:rw", "backup:rw"],
+  "options": {
+    "domain": null
+  },
+  "schema": {
+    "domain": "str"
+  }
+}
