@@ -13,6 +13,7 @@ set_port_forward:
     ssid: {description: command line, example: "T1"}
     external_port: {description: port number., example: "5555"}
     internal_port: {description: port number., example: "5555"}
+    protocol: {description: protocol., example: "TCP"}
     target_host: {description: IP address of target., example: "192.168.0.1"}
 run_command:
   description: run a command on  the device.

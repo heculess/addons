@@ -24,6 +24,7 @@ CONF_SSID = "ssid"
 CONF_TARGETHOST = "target_host"
 CONF_PORT_EXTER = "external_port"
 CONF_PORT_INNER = "internal_port"
+CONF_PROTOCOL = "protocol"
 
 
 CONF_COMMAND_LINE = "command_line"
@@ -90,6 +91,7 @@ SERVICE_SET_PORTFORWARD_SCHEMA = vol.Schema(
         vol.Required(CONF_SSID): cv.string,
         vol.Optional(CONF_PORT_EXTER, default=5555): cv.port,
         vol.Optional(CONF_PORT_INNER, default=5555): cv.port,
+        vol.Optional(CONF_PROTOCOL, default="TCP"): cv.string,
         vol.Required(CONF_TARGETHOST): cv.string,
     }
 )
@@ -148,8 +150,9 @@ class AsusRouter(AsusWrt):
     async def run_command(self, command_line):
         await self.run_cmdline(command_line)
 
-    async def set_port_forward(self, external_port, internal_port, target_host):
-        cmd = "nvram set vts_rulelist='<ruler>%s>%s>%s>BOTH>' ; nvram commit" % (external_port,target_host,internal_port)
+    async def set_port_forward(self, external_port, internal_port, protocol ,target_host):
+        cmd = "nvram set vts_enable_x=1 ; nvram set vts_rulelist='<ruler>%s>%s>%s>%s>' ; "\
+                   "nvram commit" % (external_port,target_host,internal_port,protocol)
         await self.run_command(cmd)
 
 
@@ -234,6 +237,7 @@ async def async_setup(hass, config):
                 await device.set_port_forward(
                     call.data[CONF_PORT_EXTER],
                     call.data[CONF_PORT_INNER],
+                    call.data[CONF_PROTOCOL],
                     call.data[CONF_TARGETHOST]
                 )
 
