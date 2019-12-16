@@ -11,7 +11,7 @@ _LOGGER = logging.getLogger(__name__)
 _IP_WAN_CMD = 'nvram get wan0_ipaddr'
 _WIFI_NAME_CMD = 'nvram get wl1_ssid'
 _IP_REBOOT_CMD = 'reboot'
-_CONNECT_STATE_WAN_CMD = 'nvram get link_internet'
+_CONNECT_STATE_WAN_CMD = 'nvram get wan0_state_t'
 
 _ROUTER_WAN_PROTO_COMMAND = 'nvram get wan0_proto'
 
