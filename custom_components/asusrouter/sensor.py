@@ -138,23 +138,29 @@ class AsuswrtSensor(Entity):
 
     async def async_get_public_ip(self):
         """Get current public ip."""
-        ip_content = await self._asusrouter.connection.async_run_command(
-            'wget -q -O getip pv.sohu.com/cityjson?ie=utf-8 ; cat getip')
-
-        ip_dict = ast.literal_eval(compile(r'{[^}]+}').findall(ip_content[0])[0])
-        ip = ip_dict.get('cip')
-        location = ip_dict.get('cname')
 
         public_ip = None
-        if ip:
-            public_ip = "%s    %s" % (ip,location)
-        else:
+        try:
             ip_content = await self._asusrouter.connection.async_run_command(
-                'wget -q -O getip http://members.3322.org/dyndns/getip ; cat getip')
-            if ip_content:
-                public_ip = ip_content[0]
+                'wget -q -O getip pv.sohu.com/cityjson?ie=utf-8 ; cat getip')
 
-        return public_ip
+            if ip_content:
+                ip_dict_regx = compile(r'{[^}]+}').findall(ip_content[0])
+                if ip_dict_regx:
+                    ip_dict = ast.literal_eval(ip_dict_regx[0])
+                    ip_from_dict = ip_dict.get('cip')
+                    if ip_from_dict:
+                        public_ip = "%s    %s" % (ip_from_dict,ip_dict.get('cname'))
+            if not public_ip:
+                ip_content = await self._asusrouter.connection.async_run_command(
+                    'wget -q -O getip http://members.3322.org/dyndns/getip ; cat getip')
+                if ip_content:
+                    public_ip = ip_content[0]
+
+        except  Exception as e:
+            _LOGGER.error(e)
+
+        self._public_ip = public_ip
 
     async def async_update(self):
         """Fetch status from router."""
@@ -183,8 +189,6 @@ class AsuswrtSensor(Entity):
             if ssid:
                 await self._asusrouter.set_ssid(ssid[0])
 
-            self._public_ip = await self.async_get_public_ip()
-
             wan_proto = await self._asusrouter.connection.async_run_command(
                 _ROUTER_WAN_PROTO_COMMAND)
             if wan_proto[0] == 'dhcp' or wan_proto[0] == 'static':
@@ -195,6 +199,8 @@ class AsuswrtSensor(Entity):
                 self._speed = await self.async_get_current_transfer_rates()
 
             self._connected = True
+            await self.async_get_public_ip()
+
         except  Exception as e:
             self._connected = False
             _LOGGER.error(e)
