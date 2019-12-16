@@ -2,6 +2,7 @@
 import logging
 import math
 from datetime import datetime
+from re import compile
 from homeassistant.helpers.entity import Entity
 from . import AsusRouter
 from . import DATA_ASUSWRT
@@ -53,6 +54,7 @@ class AsuswrtSensor(Entity):
         self._asusrouter = asusrouter
         self._reboot = asusrouter.reboot
         self._wan_ip = None
+        self._public_ip = None
         self._state = None
         self._rates = None
         self._speed = None
@@ -133,6 +135,19 @@ class AsuswrtSensor(Entity):
             math.ceil(tx / time_diff.total_seconds()) if tx > 0 else 0)
         return self._latest_transfer_data
 
+    async def async_get_public_ip(self):
+        """Get current public ip."""
+        public_ip = await self._asusrouter.connection.async_run_command(
+            'wget -q -O getip http://members.3322.org/dyndns/getip ; cat getip')
+        if public_ip:
+            return public_ip[0]
+
+        ip_content = await self._asusrouter.connection.async_run_command(
+            'wget -q -O getip pv.sohu.com/cityjson?ie=utf-8 ; cat getip')
+
+        get_ip_pattern = compile(r'(?<![\.\d])(?:\d{1,3}\.){3}\d{1,3}(?![\.\d])')	
+        return get_ip_pattern.findall(ip_content[0])[0]
+
     async def async_update(self):
         """Fetch status from router."""
         if self._asusrouter.connect_failed:
@@ -159,6 +174,8 @@ class AsuswrtSensor(Entity):
                 _WIFI_NAME_CMD)
             if ssid:
                 await self._asusrouter.set_ssid(ssid[0])
+
+            self._public_ip = await self.async_get_public_ip()
 
             wan_proto = await self._asusrouter.connection.async_run_command(
                 _ROUTER_WAN_PROTO_COMMAND)
@@ -222,6 +239,7 @@ class AsuswrtRouterSensor(AsuswrtSensor):
         return {
             'initialized': self._initialized,
             'wan_ip': self._wan_ip,
+            'public_ip': self._public_ip,
             'download': self.download,
             'upload': self.upload,
             'download_speed': self.download_speed,
