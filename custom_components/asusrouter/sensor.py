@@ -1,6 +1,7 @@
 """Asusrouter status sensors."""
 import logging
 import math
+import ast
 from datetime import datetime
 from re import compile
 from homeassistant.helpers.entity import Entity
@@ -137,16 +138,23 @@ class AsuswrtSensor(Entity):
 
     async def async_get_public_ip(self):
         """Get current public ip."""
-        public_ip = await self._asusrouter.connection.async_run_command(
-            'wget -q -O getip http://members.3322.org/dyndns/getip ; cat getip')
-        if public_ip:
-            return public_ip[0]
-
         ip_content = await self._asusrouter.connection.async_run_command(
             'wget -q -O getip pv.sohu.com/cityjson?ie=utf-8 ; cat getip')
 
-        get_ip_pattern = compile(r'(?<![\.\d])(?:\d{1,3}\.){3}\d{1,3}(?![\.\d])')	
-        return get_ip_pattern.findall(ip_content[0])[0]
+        ip_dict = ast.literal_eval(compile(r'{[^}]+}').findall(ip_content[0])[0])
+        ip = ip_dict.get('cip')
+        location = ip_dict.get('cname')
+
+        public_ip = None
+        if ip:
+            public_ip = "%s    %s" % (ip,location)
+        else:
+            ip_content = await self._asusrouter.connection.async_run_command(
+                'wget -q -O getip http://members.3322.org/dyndns/getip ; cat getip')
+            if ip_content:
+                public_ip = ip_content[0]
+
+        return public_ip
 
     async def async_update(self):
         """Fetch status from router."""
