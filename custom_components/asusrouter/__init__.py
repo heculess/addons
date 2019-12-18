@@ -152,7 +152,7 @@ class AsusRouter(AsusWrt):
 
     async def set_port_forward(self, external_port, internal_port, protocol ,target_host):
         cmd = "nvram set vts_enable_x=1 ; nvram set vts_rulelist='<ruler>%s>%s>%s>%s>' ; "\
-                   "nvram commit" % (external_port,target_host,internal_port,protocol)
+                   "nvram commit ; service restart_firewall" % (external_port,target_host,internal_port,protocol)
         await self.run_command(cmd)
 
 
