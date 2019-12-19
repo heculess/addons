@@ -141,9 +141,7 @@ class AsuswrtSensor(Entity):
 
         public_ip = None
         try:
-            ip_content = await self._asusrouter.connection.async_run_command(
-                'wget -q -O getip pv.sohu.com/cityjson?ie=utf-8 ; cat getip')
-
+            ip_content = await self._asusrouter.connection.async_run_command('cat getip')
             if ip_content:
                 ip_dict_regx = compile(r'{[^}]+}').findall(ip_content[0])
                 if ip_dict_regx:
@@ -151,16 +149,26 @@ class AsuswrtSensor(Entity):
                     ip_from_dict = ip_dict.get('cip')
                     if ip_from_dict:
                         public_ip = "%s    %s" % (ip_from_dict,ip_dict.get('cname'))
+            await self._asusrouter.connection.async_run_command(
+                'wget -q -b -O getip pv.sohu.com/cityjson?ie=utf-8')
+
             if not public_ip:
-                ip_content = await self._asusrouter.connection.async_run_command(
-                    'wget -q -O getip http://members.3322.org/dyndns/getip ; cat getip')
+                ip_content = await self._asusrouter.connection.async_run_command('cat getip1')
                 if ip_content:
-                    public_ip = ip_content[0]
+                    pattern = compile(r'((?<![\.\d])(?:\d{1,3}\.){3}\d{1,3}(?![\.\d]))')
+                    ip_regx = pattern.findall(ip_content[0])
+                    if ip_regx:
+                        public_ip = ip_regx[0]
+            await self._asusrouter.connection.async_run_command(
+                'wget -q -b -O getip1 members.3322.org/dyndns/getip')
 
         except  Exception as e:
             _LOGGER.error(e)
 
-        self._public_ip = public_ip
+        if public_ip:
+            self._public_ip = public_ip
+        else:
+            self._public_ip = "0.0.0.0"
 
     async def async_update(self):
         """Fetch status from router."""
@@ -170,6 +178,10 @@ class AsuswrtSensor(Entity):
         try:
             inited = await self._asusrouter.connection.async_run_command(
                 _ROUTER_IS_INITED_COMMAND)
+            if not inited:
+                _LOGGER.error(inited)
+                return
+
             if inited[0] == _RET_IS_INITED:
                 self._initialized = True
             else:

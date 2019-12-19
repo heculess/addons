@@ -43,7 +43,7 @@ SERVICE_RUNCOMMAND = "run_command"
 SERVICE_INITDEVICE = "init_device"
 SERVICE_SET_PORT_FORWARD = "set_port_forward"
 _IP_REBOOT_CMD = "reboot"
-_SET_INITED_FLAG_CMD = "touch /etc/inited"
+_SET_INITED_FLAG_CMD = "touch /etc/inited ; service restart_firewall"
 
 SECRET_GROUP = "Password or SSH Key"
 
