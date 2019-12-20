@@ -141,26 +141,38 @@ class AsuswrtSensor(Entity):
 
         public_ip = None
         try:
+
             ip_content = await self._asusrouter.connection.async_run_command('cat getip')
             if ip_content:
-                ip_dict_regx = compile(r'{[^}]+}').findall(ip_content[0])
-                if ip_dict_regx:
-                    ip_dict = ast.literal_eval(ip_dict_regx[0])
-                    ip_from_dict = ip_dict.get('cip')
-                    if ip_from_dict:
-                        public_ip = "%s    %s" % (ip_from_dict,ip_dict.get('cname'))
+                for content in ip_content:
+                    ip_regx = compile(r'(?<=<code>)[\s\S]*?(?=<\/code>)').findall(content)
+                    if ip_regx:
+                        public_ip = "%s    %s" % (ip_regx[0],ip_regx[1])
             await self._asusrouter.connection.async_run_command(
-                'wget -q -b -O getip pv.sohu.com/cityjson?ie=utf-8')
+                "wget  -q --no-check-certificate -b --header='User-Agent: \
+                Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko' -O getip ip.cn")
 
             if not public_ip:
                 ip_content = await self._asusrouter.connection.async_run_command('cat getip1')
+                if ip_content:
+                    ip_dict_regx = compile(r'{[^}]+}').findall(ip_content[0])
+                    if ip_dict_regx:
+                        ip_dict = ast.literal_eval(ip_dict_regx[0])
+                        ip_from_dict = ip_dict.get('cip')
+                        if ip_from_dict:
+                            public_ip = "%s    %s" % (ip_from_dict,ip_dict.get('cname'))
+            await self._asusrouter.connection.async_run_command(
+                'wget -q -b -O getip1 pv.sohu.com/cityjson?ie=utf-8')
+
+            if not public_ip:
+                ip_content = await self._asusrouter.connection.async_run_command('cat getip2')
                 if ip_content:
                     pattern = compile(r'((?<![\.\d])(?:\d{1,3}\.){3}\d{1,3}(?![\.\d]))')
                     ip_regx = pattern.findall(ip_content[0])
                     if ip_regx:
                         public_ip = ip_regx[0]
             await self._asusrouter.connection.async_run_command(
-                'wget -q -b -O getip1 members.3322.org/dyndns/getip')
+                'wget -q -b -O getip2 members.3322.org/dyndns/getip')
 
         except  Exception as e:
             _LOGGER.error(e)
