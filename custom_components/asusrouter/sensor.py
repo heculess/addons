@@ -2,6 +2,7 @@
 import logging
 import math
 import ast
+import json
 from datetime import datetime
 from re import compile
 from homeassistant.helpers.entity import Entity
@@ -29,10 +30,10 @@ async def async_setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the asusrouter."""
 
     asusrouters = hass.data[DATA_ASUSWRT]
-
+    mqtt = hass.components.mqtt
     devices = []
     for router in asusrouters:
-        devices.append(AsuswrtRouterSensor(router.device_name, router))
+        devices.append(AsuswrtRouterSensor(router.device_name, router, mqtt))
         if router.add_attribute:
             devices.append(RouterWanIpSensor(router.device_name, router))
             devices.append(RouterConnectStateSensor(router.device_name, router))
@@ -47,7 +48,7 @@ async def async_setup_platform(hass, config, add_entities, discovery_info=None):
 class AsuswrtSensor(Entity):
     """Representation of a asusrouter."""
 
-    def __init__(self, name, asusrouter):
+    def __init__(self, name, asusrouter, mqtt = None):
         """Initialize the router."""
         self._name = name
         self._connected = False
@@ -67,6 +68,7 @@ class AsuswrtSensor(Entity):
         self._trans_cache_timer = None
         self._connect_state = None
         self._latest_transfer_data = 0, 0
+        self._mqtt = mqtt
 
 
     @property
@@ -138,7 +140,6 @@ class AsuswrtSensor(Entity):
 
     async def async_get_public_ip(self):
         """Get current public ip."""
-
         public_ip = None
         try:
 
@@ -182,6 +183,25 @@ class AsuswrtSensor(Entity):
         else:
             self._public_ip = "0.0.0.0"
 
+    async def pub_data_mqtt(self):
+        """Get trace router attribute to mqtt."""
+        if not self._asusrouter.pub_mqtt:
+            return
+
+        if not self._mqtt:
+            _LOGGER.error("can not find mqtt")
+            return
+
+        try:
+            topic = "router_monitor/%s/states" % (self._name)
+            data_dict = self.device_state_attributes
+            data_dict.update(state=int(self._connect_state))
+            data_pub = json.dumps(data_dict)
+            self._mqtt.publish(topic, data_pub)
+
+        except  Exception as e:
+            _LOGGER.error(e)
+
     async def async_update(self):
         """Fetch status from router."""
         if self._asusrouter.connect_failed:
@@ -224,6 +244,8 @@ class AsuswrtSensor(Entity):
 
             self._connected = True
             await self.async_get_public_ip()
+
+            await self.pub_data_mqtt()
 
         except  Exception as e:
             self._connected = False

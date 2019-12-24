@@ -20,6 +20,7 @@ CONF_PUB_KEY = "pub_key"
 CONF_SENSORS = "sensors"
 CONF_SSH_KEY = "ssh_key"
 CONF_ADD_ATTR = "add_attribute"
+CONF_PUB_MQTT = "pub_mqtt"
 CONF_SSID = "ssid"
 CONF_TARGETHOST = "target_host"
 CONF_PORT_EXTER = "external_port"
@@ -67,7 +68,8 @@ CONFIG_SCHEMA = vol.Schema(
                     cv.ensure_list,
                     vol.All([ROUTER_CONFIG]),
                 ),
-                vol.Optional(CONF_ADD_ATTR, default=True): cv.boolean,
+                vol.Optional(CONF_ADD_ATTR, default=False): cv.boolean,
+                vol.Optional(CONF_PUB_MQTT, default=False): cv.boolean,
             }
         )
     },
@@ -99,13 +101,14 @@ SERVICE_SET_PORTFORWARD_SCHEMA = vol.Schema(
 class AsusRouter(AsusWrt):
     """interface of a asusrouter."""
 
-    def __init__(self, host, port, devicename, username, password, ssh_key, add_attr):
+    def __init__(self, host, port, devicename, username, password, ssh_key):
         """Init function."""
         super().__init__(host, port, False, username, password, ssh_key)
         self._device_name = devicename
         self._host = host
         self._connect_failed = False
-        self._add_attribute = add_attr
+        self._add_attribute = False
+        self._pub_mqtt = False
         self._ssid = None
 
     @property
@@ -124,6 +127,11 @@ class AsusRouter(AsusWrt):
         return self._connect_failed
 
     @property
+    def pub_mqtt(self):
+        """Return the host ip of the router."""
+        return  self._pub_mqtt
+
+    @property
     def add_attribute(self):
         """Return the host ip of the router."""
         return self._add_attribute
@@ -135,6 +143,12 @@ class AsusRouter(AsusWrt):
 
     async def set_ssid(self, ssid):
         self._ssid = ssid
+
+    async def set_add_attribute(self, add_attribute):
+        self._add_attribute = add_attribute
+
+    async def set_pub_mqtt(self, pub_mqtt):
+        self._pub_mqtt = pub_mqtt
 
     async def run_cmdline(self, command_line):
         self._connect_failed = False
@@ -161,8 +175,6 @@ async def async_setup(hass, config):
 
     routers_conf = []
 
-    add_sub_attribute = config[DOMAIN][CONF_ADD_ATTR]
-
     if DOMAIN in config:
         routers_conf = config[DOMAIN][CONF_ROUTERS]
 
@@ -174,9 +186,10 @@ async def async_setup(hass, config):
             conf[CONF_NAME],
             conf[CONF_USERNAME],
             conf.get(CONF_PASSWORD, ""),
-            conf.get(CONF_SSH_KEY, conf.get("pub_key", "")),
-            add_sub_attribute
+            conf.get(CONF_SSH_KEY, conf.get("pub_key", ""))
         )
+        await router.set_add_attribute(config[DOMAIN][CONF_ADD_ATTR])
+        await router.set_pub_mqtt(config[DOMAIN][CONF_PUB_MQTT])
 
 #        await router.connection.async_connect()
 #        if not router.is_connected:
