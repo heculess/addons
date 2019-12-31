@@ -5,7 +5,9 @@
   "requirements": [
     "aioasuswrt==1.1.22"
   ],
-  "dependencies": [],
+  "dependencies": [
+    "mqtt"
+  ],
   "codeowners": [
     "@heculess"
   ]

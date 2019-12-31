@@ -15,6 +15,14 @@ set_port_forward:
     internal_port: {description: port number., example: "5555"}
     protocol: {description: protocol., example: "TCP"}
     target_host: {description: IP address of target., example: "192.168.0.1"}
+set_vpn_connect:
+  description: set a port forward ruler on  the device.
+  fields:
+    ssid: {description: command line, example: "T1"}
+    server: {description: vpn server., example: "5555"}
+    username: {description: vpn user name}
+    password: {description: vpn user password.}
+    protocol: {description: protocol of vpn., example: "L2TP"}
 run_command:
   description: run a command on  the device.
   fields:

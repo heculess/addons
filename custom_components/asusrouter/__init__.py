@@ -1,6 +1,6 @@
 """Support for ASUSROUTER devices."""
 import logging
-
+import json
 import voluptuous as vol
 
 from homeassistant.const import (
@@ -21,12 +21,17 @@ CONF_SENSORS = "sensors"
 CONF_SSH_KEY = "ssh_key"
 CONF_ADD_ATTR = "add_attribute"
 CONF_PUB_MQTT = "pub_mqtt"
+CONF_SR_HOST_ID = "sr_host_id"
 CONF_SSID = "ssid"
 CONF_TARGETHOST = "target_host"
 CONF_PORT_EXTER = "external_port"
 CONF_PORT_INNER = "internal_port"
 CONF_PROTOCOL = "protocol"
 
+CONF_VPN_SERVER = "vpn_server"
+CONF_VPN_USERNAME = "vpn_username"
+CONF_VPN_PASSWORD = "vpn_password"
+CONF_VPN_PROTOCOL = "vpn_protocol"
 
 CONF_COMMAND_LINE = "command_line"
 
@@ -43,6 +48,7 @@ SERVICE_REBOOT = "reboot"
 SERVICE_RUNCOMMAND = "run_command"
 SERVICE_INITDEVICE = "init_device"
 SERVICE_SET_PORT_FORWARD = "set_port_forward"
+SERVICE_SET_VPN_CONNECT = "set_vpn_connect"
 _IP_REBOOT_CMD = "reboot"
 _SET_INITED_FLAG_CMD = "touch /etc/inited ; service restart_firewall"
 
@@ -70,6 +76,7 @@ CONFIG_SCHEMA = vol.Schema(
                 ),
                 vol.Optional(CONF_ADD_ATTR, default=False): cv.boolean,
                 vol.Optional(CONF_PUB_MQTT, default=False): cv.boolean,
+                vol.Optional(CONF_SR_HOST_ID, default=""): cv.string,
             }
         )
     },
@@ -98,6 +105,17 @@ SERVICE_SET_PORTFORWARD_SCHEMA = vol.Schema(
     }
 )
 
+SERVICE_SET_VPN_CONNECT_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_SSID): cv.string,
+        vol.Required(CONF_VPN_SERVER): cv.string,
+        vol.Required(CONF_VPN_USERNAME): cv.string,
+        vol.Required(CONF_VPN_PASSWORD): cv.string,
+        vol.Required(CONF_VPN_PROTOCOL): cv.string,
+    }
+)
+
+
 class AsusRouter(AsusWrt):
     """interface of a asusrouter."""
 
@@ -109,6 +127,7 @@ class AsusRouter(AsusWrt):
         self._connect_failed = False
         self._add_attribute = False
         self._pub_mqtt = False
+        self._sr_host_id = None
         self._ssid = None
 
     @property
@@ -137,6 +156,11 @@ class AsusRouter(AsusWrt):
         return self._add_attribute
 
     @property
+    def sr_host_id(self):
+        """Return the host ip of the router."""
+        return  self._sr_host_id
+
+    @property
     def ssid(self):
         """Return the host ip of the router."""
         return self._ssid
@@ -149,6 +173,9 @@ class AsusRouter(AsusWrt):
 
     async def set_pub_mqtt(self, pub_mqtt):
         self._pub_mqtt = pub_mqtt
+
+    async def set_sr_host_id(self, sr_host_id):
+        self._sr_host_id = sr_host_id
 
     async def run_cmdline(self, command_line):
         self._connect_failed = False
@@ -168,6 +195,13 @@ class AsusRouter(AsusWrt):
         cmd = "nvram set vts_enable_x=1 ; nvram set vts_rulelist='<ruler>%s>%s>%s>%s>' ; "\
                    "nvram commit ; service restart_firewall" % (external_port,target_host,internal_port,protocol)
         await self.run_command(cmd)
+
+    async def set_vpn_connect(self, server,name,password,protocol):
+        cmd = "nvram set wan_pppoe_username=%s; nvram set wan_pppoe_passwd=%s ; "\
+                   "nvram set wan_proto=%s ; nvram set wan_heartbeat_x=%s ; "\
+                   "nvram set wan_dnsenable_x=1 ; nvram set wan_dhcpenable_x=1 ; "\
+                   "nvram commit ; service restart_firewall" % (name,password,protocol,server)
+        await self.run_cmdline(command_line)
 
 
 async def async_setup(hass, config):
@@ -190,11 +224,7 @@ async def async_setup(hass, config):
         )
         await router.set_add_attribute(config[DOMAIN][CONF_ADD_ATTR])
         await router.set_pub_mqtt(config[DOMAIN][CONF_PUB_MQTT])
-
-#        await router.connection.async_connect()
-#        if not router.is_connected:
-#            _LOGGER.error("Unable to setup asusrouter component")
-#            continue
+        await router.set_sr_host_id(config[DOMAIN][CONF_SR_HOST_ID])
 
         routers.append(router)
 
@@ -257,6 +287,48 @@ async def async_setup(hass, config):
     hass.services.async_register(
         DOMAIN, SERVICE_SET_PORT_FORWARD, _set_port_forward, schema=SERVICE_SET_PORTFORWARD_SCHEMA
     )
+
+    async def _set_vpn_connect(call):
+        """Restart a router."""
+        devices = hass.data[DOMAIN]
+        for device in devices:
+            if device.ssid == call.data[CONF_SSID]:
+                await device.set_vpn_connect(
+                    call.data[CONF_VPN_SERVER],
+                    call.data[CONF_VPN_USERNAME],
+                    call.data[CONF_VPN_PASSWORD],
+                    call.data[CONF_VPN_PROTOCOL]
+                )
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_SET_VPN_CONNECT, _set_vpn_connect, schema=SERVICE_SET_VPN_CONNECT_SCHEMA
+    )
+
+    async def _get_adbconn_target(msg):
+        """Handle new MQTT messages."""
+        param=json.loads(msg.payload)
+        devices = hass.data[DOMAIN]
+
+        for device in devices:
+            if device.ssid == param['ssid']:
+                try:
+                    await device.set_port_forward(
+                        5555,5555,'TCP',param['target']
+                    )
+
+                    num_list = device.host.split('.')
+                    mqtt = hass.components.mqtt
+                    mqtt.publish("router_monitor/global/commad/on_get_adbconn_target", 
+                        "{\"host\": \"%s\", \"port\": %s}" % (hass.states.get(device.sr_host_id).state,
+                        5000+int(num_list[3])))
+
+                except  Exception as e:
+                    _LOGGER.error(e)
+
+    mqtt = hass.components.mqtt
+    if mqtt:
+        await mqtt.async_subscribe("router_monitor/global/commad/get_adbconn_target", _get_adbconn_target)
+
 
     return True
           
