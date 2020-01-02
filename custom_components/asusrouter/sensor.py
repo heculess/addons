@@ -15,6 +15,8 @@ _IP_WAN_CMD = 'nvram get wan0_ipaddr'
 _WIFI_NAME_CMD = 'nvram get wl1_ssid'
 _IP_REBOOT_CMD = 'reboot'
 _CONNECT_STATE_WAN_CMD = 'nvram get wan0_state_t'
+_STATES_WIFI_5G_CMD = 'nvram get wl1_radio'
+_STATES_WIFI_2G_CMD = 'nvram get wl0_radio'
 
 _ROUTER_WAN_PROTO_COMMAND = 'nvram get wan0_proto'
 
@@ -69,7 +71,8 @@ class AsuswrtSensor(Entity):
         self._connect_state = None
         self._latest_transfer_data = 0, 0
         self._mqtt = mqtt
-
+        self._5g_wifi = None
+        self._2g_wifi = None
 
     @property
     def state(self):
@@ -242,6 +245,16 @@ class AsuswrtSensor(Entity):
                 self._rates = await self.async_get_bytes_total()
                 self._speed = await self.async_get_current_transfer_rates()
 
+            wifi_states_5g = await self._asusrouter.connection.async_run_command(
+                _STATES_WIFI_5G_CMD)
+            if wifi_states_5g:
+                self._5g_wifi = int(wifi_states_5g[0])
+
+            wifi_states_2g = await self._asusrouter.connection.async_run_command(
+                _STATES_WIFI_2G_CMD)
+            if wifi_states_2g:
+                self._2g_wifi = int(wifi_states_2g[0])
+
             self._connected = True
             await self.async_get_public_ip()
 
@@ -307,6 +320,8 @@ class AsuswrtRouterSensor(AsuswrtSensor):
             'connect_state': self._connected,
             'ssid': self._asusrouter.ssid,
             'host': self._asusrouter.host,
+            '2.4G_wifi': self._2g_wifi,
+            '5G_wifi': self._5g_wifi,
         }
 
     async def async_update(self):

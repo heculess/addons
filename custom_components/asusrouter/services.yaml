@@ -28,3 +28,9 @@ run_command:
   fields:
     command_line: {description: command line, example: "add route XXXXXX"}
     host: {description: IP address of device to restart., example: "192.168.0.1"}
+enable_wifi:
+  description: run a command on  the device.
+  fields:
+    host: {description: IP address of device to restart., example: "192.168.0.1"}
+    enable: {description: state of wifi , example: "True"}
+    wifi_type: {description: type of wifi, example: "2.4G"}

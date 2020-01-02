@@ -35,6 +35,12 @@ CONF_VPN_PROTOCOL = "vpn_protocol"
 
 CONF_COMMAND_LINE = "command_line"
 
+CONF_ENABLE_WIFI = "enable"
+CONF_TYPE_WIFI = "wifi_type"
+
+CONF_NAME_2GWIFI = '2.4g'
+CONF_NAME_5GWIFI = '5g'
+
 DEFAULT_RETRY = 3
 
 DOMAIN = "asusrouter"
@@ -49,6 +55,7 @@ SERVICE_RUNCOMMAND = "run_command"
 SERVICE_INITDEVICE = "init_device"
 SERVICE_SET_PORT_FORWARD = "set_port_forward"
 SERVICE_SET_VPN_CONNECT = "set_vpn_connect"
+SERVICE_ENABLE_WIFI = "enable_wifi"
 _IP_REBOOT_CMD = "reboot"
 _SET_INITED_FLAG_CMD = "touch /etc/inited ; service restart_firewall"
 
@@ -115,6 +122,15 @@ SERVICE_SET_VPN_CONNECT_SCHEMA = vol.Schema(
     }
 )
 
+
+SERVICE_ENABLE_WIFI_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_HOST): cv.string,
+        vol.Required(CONF_ENABLE_WIFI): cv.boolean,
+        vol.Required(CONF_TYPE_WIFI, default=CONF_NAME_5GWIFI): vol.In(
+            [CONF_NAME_2GWIFI, CONF_NAME_5GWIFI]),
+    }
+)
 
 class AsusRouter(AsusWrt):
     """interface of a asusrouter."""
@@ -201,7 +217,21 @@ class AsusRouter(AsusWrt):
                    "nvram set wan_proto=%s ; nvram set wan_heartbeat_x=%s ; "\
                    "nvram set wan_dnsenable_x=1 ; nvram set wan_dhcpenable_x=1 ; "\
                    "nvram commit ; service restart_firewall" % (name,password,protocol,server)
-        await self.run_cmdline(command_line)
+        await self.run_cmdline(cmd)
+
+    async def enable_wifi(self, type,enable):
+        cmd = None
+
+        if type == CONF_NAME_2GWIFI:
+            cmd = "nvram set wl0_radio=%s ; nvram commit ; service restart_wireless" % (1 if enable else 0)
+        elif type == CONF_NAME_5GWIFI:
+            cmd = "nvram set wl1_radio=%s ; nvram commit ; service restart_wireless" % (1 if enable else 0)
+        else:
+            _LOGGER.error("can not find wifi type %s" % (type))
+
+        if cmd:
+            await self.run_cmdline(cmd)
+
 
 
 async def async_setup(hass, config):
@@ -329,6 +359,17 @@ async def async_setup(hass, config):
     if mqtt:
         await mqtt.async_subscribe("router_monitor/global/commad/get_adbconn_target", _get_adbconn_target)
 
+
+    async def _enable_wifi(call):
+        """Restart a router."""
+        devices = hass.data[DOMAIN]
+        for device in devices:
+            if device.host == call.data[CONF_HOST] or call.data[CONF_HOST] == "ALL":
+                await device.enable_wifi(call.data[CONF_TYPE_WIFI],call.data[CONF_ENABLE_WIFI])
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_ENABLE_WIFI, _enable_wifi, schema=SERVICE_ENABLE_WIFI_SCHEMA
+    )
 
     return True
           
