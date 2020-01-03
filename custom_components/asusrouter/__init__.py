@@ -213,10 +213,10 @@ class AsusRouter(AsusWrt):
         await self.run_command(cmd)
 
     async def set_vpn_connect(self, server,name,password,protocol):
-        cmd = "nvram set wan_pppoe_username=%s; nvram set wan_pppoe_passwd=%s ; "\
-                   "nvram set wan_proto=%s ; nvram set wan_heartbeat_x=%s ; "\
-                   "nvram set wan_dnsenable_x=1 ; nvram set wan_dhcpenable_x=1 ; "\
-                   "nvram commit ; service restart_firewall" % (name,password,protocol,server)
+        cmd = "nvram set wan0_pppoe_username=%s; nvram set wan0_pppoe_passwd=%s ; "\
+                   "nvram set wan0_proto=%s ; nvram set wan0_heartbeat_x=%s ; "\
+                   "nvram set wan0_dnsenable_x=1 ; nvram set wan0_dhcpenable_x=1 ; "\
+                   "nvram commit ; service restart_wan " % (name,password,protocol,server)
         await self.run_cmdline(cmd)
 
     async def enable_wifi(self, type,enable):
@@ -355,9 +355,10 @@ async def async_setup(hass, config):
                 except  Exception as e:
                     _LOGGER.error(e)
 
-    mqtt = hass.components.mqtt
-    if mqtt:
-        await mqtt.async_subscribe("router_monitor/global/commad/get_adbconn_target", _get_adbconn_target)
+    if config[DOMAIN][CONF_PUB_MQTT]:
+        mqtt = hass.components.mqtt
+        if mqtt:
+            await mqtt.async_subscribe("router_monitor/global/commad/get_adbconn_target", _get_adbconn_target)
 
 
     async def _enable_wifi(call):
