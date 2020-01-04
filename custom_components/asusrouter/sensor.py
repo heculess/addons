@@ -152,6 +152,7 @@ class AsuswrtSensor(Entity):
                     ip_regx = compile(r'(?<=<code>)[\s\S]*?(?=<\/code>)').findall(content)
                     if ip_regx:
                         public_ip = "%s    %s" % (ip_regx[0],ip_regx[1])
+            await self._asusrouter.connection.async_run_command('rm getip')
             await self._asusrouter.connection.async_run_command(
                 "wget  -q --no-check-certificate -b --header='User-Agent: \
                 Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko' -O getip ip.cn")
@@ -165,6 +166,7 @@ class AsuswrtSensor(Entity):
                         ip_from_dict = ip_dict.get('cip')
                         if ip_from_dict:
                             public_ip = "%s    %s" % (ip_from_dict,ip_dict.get('cname'))
+            await self._asusrouter.connection.async_run_command('rm getip1')
             await self._asusrouter.connection.async_run_command(
                 'wget -q -b -O getip1 pv.sohu.com/cityjson?ie=utf-8')
 
@@ -175,6 +177,7 @@ class AsuswrtSensor(Entity):
                     ip_regx = pattern.findall(ip_content[0])
                     if ip_regx:
                         public_ip = ip_regx[0]
+            await self._asusrouter.connection.async_run_command('rm getip2')
             await self._asusrouter.connection.async_run_command(
                 'wget -q -b -O getip2 members.3322.org/dyndns/getip')
 
