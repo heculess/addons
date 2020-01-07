@@ -157,6 +157,8 @@ class AsuswrtSensor(Entity):
                 vpn_state = await self._asusrouter.connection.async_run_command("nvram get vpnc_state_t")
                 if vpn_state:
                     self._connect_state= vpn_state[0]
+                if self._connect_state == '0':
+                    await self._asusrouter.connection.async_run_command("service restart_vpncall")
 
     async def async_get_public_ip(self):
         """Get current public ip."""
