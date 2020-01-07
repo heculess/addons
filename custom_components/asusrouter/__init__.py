@@ -213,10 +213,16 @@ class AsusRouter(AsusWrt):
         await self.run_command(cmd)
 
     async def set_vpn_connect(self, server,name,password,protocol):
-        cmd = "nvram set wan0_pppoe_username=%s; nvram set wan0_pppoe_passwd=%s ; "\
-                   "nvram set wan0_proto=%s ; nvram set wan0_heartbeat_x=%s ; "\
+        cmd = "nvram set vpnc_pppoe_username= ; nvram set vpnc_pppoe_passwd= ; "\
+                   "nvram set vpnc_proto=disable; nvram set wan0_proto=%s ; "\
                    "nvram set wan0_dnsenable_x=1 ; nvram set wan0_dhcpenable_x=1 ; "\
-                   "nvram commit ; service restart_wan " % (name,password,protocol,server)
+                   "nvram commit ; service restart_vpncall ; service restart_wan " % (protocol)
+        if protocol != "dhcp":
+            cmd = "nvram set vpnc_pppoe_username=%s; nvram set vpnc_pppoe_passwd=%s ; "\
+                       "nvram set vpnc_proto=%s ; nvram set vpnc_heartbeat_x=%s ; "\
+                       "nvram set vpnc_dnsenable_x=1 ; nvram set vpnc_clientlist='vpn>%s>%s>%s>%s'; "\
+                       "nvram commit ; service restart_vpncall " % (name,password,protocol,server,
+                       protocol.upper(),server,name,password)
         await self.run_cmdline(cmd)
 
     async def enable_wifi(self, type,enable):

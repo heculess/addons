@@ -141,6 +141,23 @@ class AsuswrtSensor(Entity):
             math.ceil(tx / time_diff.total_seconds()) if tx > 0 else 0)
         return self._latest_transfer_data
 
+    async def async_get_wan_state(self):
+
+        connect = await self._asusrouter.connection.async_run_command(
+            _CONNECT_STATE_WAN_CMD)
+        if not connect:
+            return
+
+        self._connect_state = connect[0]
+        if connect[0] == '2':
+            vpn_proto = await self._asusrouter.connection.async_run_command("nvram get vpnc_proto")
+            if not vpn_proto:
+                return
+            if vpn_proto[0] != "disable":
+                vpn_state = await self._asusrouter.connection.async_run_command("nvram get vpnc_state_t")
+                if vpn_state:
+                    self._connect_state= vpn_state[0]
+
     async def async_get_public_ip(self):
         """Get current public ip."""
         public_ip = None
@@ -229,10 +246,7 @@ class AsuswrtSensor(Entity):
             if lines:
                 self._wan_ip = lines[0]
 
-            connect = await self._asusrouter.connection.async_run_command(
-                _CONNECT_STATE_WAN_CMD)
-            if connect:
-                self._connect_state = connect[0]
+            await self.async_get_wan_state()
 
             ssid = await self._asusrouter.connection.async_run_command(
                 _WIFI_NAME_CMD)
