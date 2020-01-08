@@ -73,6 +73,7 @@ class AliddnsSensor(Entity):
         return {
             'update_time': self._update_time,
             'record': self._record,
+            'domain': "%s.%s" % (self.sub_domain,self.domain),
             'last_record': self._last_record,
         }
 

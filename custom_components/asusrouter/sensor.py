@@ -153,7 +153,10 @@ class AsuswrtSensor(Entity):
             vpn_proto = await self._asusrouter.connection.async_run_command("nvram get vpnc_proto")
             if not vpn_proto:
                 return
-            if vpn_proto[0] != "disable":
+            if vpn_proto[0] == "disable":
+                await self._asusrouter.set_vpn_enabled(False)
+            else:
+                await self._asusrouter.set_vpn_enabled(True)
                 vpn_state = await self._asusrouter.connection.async_run_command("nvram get vpnc_state_t")
                 if vpn_state:
                     self._connect_state= vpn_state[0]

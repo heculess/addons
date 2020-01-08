@@ -56,7 +56,6 @@ SERVICE_INITDEVICE = "init_device"
 SERVICE_SET_PORT_FORWARD = "set_port_forward"
 SERVICE_SET_VPN_CONNECT = "set_vpn_connect"
 SERVICE_ENABLE_WIFI = "enable_wifi"
-_IP_REBOOT_CMD = "reboot"
 _SET_INITED_FLAG_CMD = "touch /etc/inited ; service restart_firewall"
 
 SECRET_GROUP = "Password or SSH Key"
@@ -144,6 +143,7 @@ class AsusRouter(AsusWrt):
         self._add_attribute = False
         self._pub_mqtt = False
         self._sr_host_id = None
+        self._vpn_enabled = False
         self._ssid = None
 
     @property
@@ -177,6 +177,11 @@ class AsusRouter(AsusWrt):
         return  self._sr_host_id
 
     @property
+    def vpn_enabled(self):
+        """Return the host ip of the router."""
+        return self._vpn_enabled
+
+    @property
     def ssid(self):
         """Return the host ip of the router."""
         return self._ssid
@@ -193,6 +198,9 @@ class AsusRouter(AsusWrt):
     async def set_sr_host_id(self, sr_host_id):
         self._sr_host_id = sr_host_id
 
+    async def set_vpn_enabled(self, vpn_enable):
+        self._vpn_enabled = vpn_enable
+
     async def run_cmdline(self, command_line):
         self._connect_failed = False
         try:
@@ -202,7 +210,10 @@ class AsusRouter(AsusWrt):
             _LOGGER.error(e)
 
     async def reboot(self):
-        await self.run_cmdline(_IP_REBOOT_CMD)
+        if self._vpn_enabled:
+            await self.run_cmdline("service restart_vpncall")
+        else:
+            await self.run_cmdline("reboot")
 
     async def run_command(self, command_line):
         await self.run_cmdline(command_line)
@@ -351,12 +362,12 @@ async def async_setup(hass, config):
                     await device.set_port_forward(
                         5555,5555,'TCP',param['target']
                     )
-
                     num_list = device.host.split('.')
                     mqtt = hass.components.mqtt
-                    mqtt.publish("router_monitor/global/commad/on_get_adbconn_target", 
-                        "{\"host\": \"%s\", \"port\": %s}" % (hass.states.get(device.sr_host_id).state,
-                        5000+int(num_list[3])))
+                    msg = "{\"host\": \"%s\", \"domain\": \"%s\", \"public_ip\": \"%s\", \"port\": %s}" % (device.host, 
+                        hass.states.get(device.sr_host_id).attributes.get('domain'), 
+                        hass.states.get(device.sr_host_id).attributes.get('record'), 5000+int(num_list[3]))
+                    mqtt.publish("router_monitor/global/commad/on_get_adbconn_target", msg)
 
                 except  Exception as e:
                     _LOGGER.error(e)
