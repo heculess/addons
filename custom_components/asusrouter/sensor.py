@@ -26,6 +26,8 @@ _RET_IS_INITED = '/etc/inited'
 _ROUTER_RX_COMMAND = 'cat /sys/class/net/ppp0/statistics/rx_bytes'
 _ROUTER_TX_COMMAND = 'cat /sys/class/net/ppp0/statistics/tx_bytes'
 
+_CONF_VPN_PROTO_DEFAULE = 'disable'
+
 CHANGE_TIME_CACHE_DEFAULT = 5  # Default 60s
 
 async def async_setup_platform(hass, config, add_entities, discovery_info=None):
@@ -70,6 +72,9 @@ class AsuswrtSensor(Entity):
         self._trans_cache_timer = None
         self._connect_state = None
         self._latest_transfer_data = 0, 0
+        self._ppoe_username = None
+        self._ppoe_heartbeat = None
+        self._ppoe_proto = _CONF_VPN_PROTO_DEFAULE
         self._mqtt = mqtt
         self._5g_wifi = None
         self._2g_wifi = None
@@ -141,6 +146,18 @@ class AsuswrtSensor(Entity):
             math.ceil(tx / time_diff.total_seconds()) if tx > 0 else 0)
         return self._latest_transfer_data
 
+    async def async_get_vpn_state(self):
+
+        vpn_proto = await self._asusrouter.connection.async_run_command("nvram get vpnc_proto")
+        if vpn_proto:
+            self._ppoe_proto = vpn_proto[0]
+
+        if self._ppoe_proto == _CONF_VPN_PROTO_DEFAULE:
+            await self._asusrouter.set_vpn_enabled(False)
+        else:
+            await self._asusrouter.set_vpn_enabled(True)
+
+
     async def async_get_wan_state(self):
 
         connect = await self._asusrouter.connection.async_run_command(
@@ -149,19 +166,36 @@ class AsuswrtSensor(Entity):
             return
 
         self._connect_state = connect[0]
-        if connect[0] == '2':
-            vpn_proto = await self._asusrouter.connection.async_run_command("nvram get vpnc_proto")
-            if not vpn_proto:
-                return
-            if vpn_proto[0] == "disable":
-                await self._asusrouter.set_vpn_enabled(False)
-            else:
-                await self._asusrouter.set_vpn_enabled(True)
-                vpn_state = await self._asusrouter.connection.async_run_command("nvram get vpnc_state_t")
-                if vpn_state:
-                    self._connect_state= vpn_state[0]
-                if self._connect_state == '0':
-                    await self._asusrouter.connection.async_run_command("service restart_vpncall")
+        if connect[0] != '2':
+            return
+
+        if self._asusrouter.vpn_enabled:
+            vpn_state = await self._asusrouter.connection.async_run_command("nvram get vpnc_state_t")
+            if vpn_state:
+                self._connect_state= vpn_state[0]
+            if self._connect_state == '0':
+                await self._asusrouter.connection.async_run_command("service restart_vpncall")
+
+    async def async_get_vpn_client(self):
+        if self._asusrouter.vpn_enabled:
+            usrname = await self._asusrouter.connection.async_run_command(
+                "nvram get vpnc_pppoe_username")
+            if usrname:
+                self._ppoe_username = usrname[0]
+            heartbeat = await self._asusrouter.connection.async_run_command(
+                "nvram get vpnc_heartbeat_x")
+            if heartbeat:
+                self._ppoe_heartbeat = heartbeat[0]
+
+    async def async_get_ppoe_vpn(self):
+        usrname = await self._asusrouter.connection.async_run_command(
+            "nvram get wan0_pppoe_username")
+        if usrname:
+            self._ppoe_username = usrname[0]
+        heartbeat = await self._asusrouter.connection.async_run_command(
+            "nvram get wan0_heartbeat_x")
+        if heartbeat:
+            self._ppoe_heartbeat = heartbeat[0]
 
     async def async_get_public_ip(self):
         """Get current public ip."""
@@ -247,11 +281,14 @@ class AsuswrtSensor(Entity):
             else:
                 self._initialized = False
 
+            await self.async_get_vpn_state()
+
             lines = await self._asusrouter.connection.async_run_command(_IP_WAN_CMD)
             if lines:
                 self._wan_ip = lines[0]
 
             await self.async_get_wan_state()
+            await self.async_get_vpn_client()
 
             ssid = await self._asusrouter.connection.async_run_command(
                 _WIFI_NAME_CMD)
@@ -266,6 +303,7 @@ class AsuswrtSensor(Entity):
             else:
                 self._rates = await self.async_get_bytes_total()
                 self._speed = await self.async_get_current_transfer_rates()
+                await self.async_get_ppoe_vpn()
 
             wifi_states_5g = await self._asusrouter.connection.async_run_command(
                 _STATES_WIFI_5G_CMD)
@@ -344,6 +382,9 @@ class AsuswrtRouterSensor(AsuswrtSensor):
             'host': self._asusrouter.host,
             '2.4G_wifi': self._2g_wifi,
             '5G_wifi': self._5g_wifi,
+            'vpn_username': self._ppoe_username,
+            'vpn_server': self._ppoe_heartbeat,
+            'vpn_proto': self._ppoe_proto,
         }
 
     async def async_update(self):
