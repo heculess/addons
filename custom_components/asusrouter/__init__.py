@@ -48,7 +48,7 @@ CONF_ROUTERS = "routers"
 DATA_ASUSWRT = DOMAIN
 DEFAULT_SSH_PORT = 22
 
-
+CMD_MQTT_TOPIC = "router_monitor/global/commad/on_get_adbconn_target"
 
 SERVICE_REBOOT = "reboot"
 SERVICE_RUNCOMMAND = "run_command"
@@ -367,7 +367,11 @@ async def async_setup(hass, config):
                     msg = "{\"host\": \"%s\", \"domain\": \"%s\", \"public_ip\": \"%s\", \"port\": %s}" % (device.host, 
                         hass.states.get(device.sr_host_id).attributes.get('domain'), 
                         hass.states.get(device.sr_host_id).attributes.get('record'), 5000+int(num_list[3]))
-                    mqtt.publish("router_monitor/global/commad/on_get_adbconn_target", msg)
+                    req_id = param.get('requestid')
+                    if req_id:
+                        mqtt.publish("%s/%s" % (CMD_MQTT_TOPIC,req_id), msg)
+                    else:
+                        mqtt.publish(CMD_MQTT_TOPIC, msg)
 
                 except  Exception as e:
                     _LOGGER.error(e)
