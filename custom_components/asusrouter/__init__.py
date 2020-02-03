@@ -49,6 +49,7 @@ DATA_ASUSWRT = DOMAIN
 DEFAULT_SSH_PORT = 22
 
 CMD_MQTT_TOPIC = "router_monitor/global/commad/on_get_adbconn_target"
+MQTT_VPN_ACCOUNT_TOPIC = "router_monitor/global/commad/on_get_vpn_account"
 
 SERVICE_REBOOT = "reboot"
 SERVICE_RUNCOMMAND = "run_command"
@@ -144,6 +145,8 @@ class AsusRouter(AsusWrt):
         self._pub_mqtt = False
         self._sr_host_id = None
         self._vpn_enabled = False
+        self._vpn_user = False
+        self._vpn_server = False
         self._ssid = None
 
     @property
@@ -182,6 +185,16 @@ class AsusRouter(AsusWrt):
         return self._vpn_enabled
 
     @property
+    def vpn_user(self):
+        """Return the host ip of the router."""
+        return self._vpn_user
+
+    @property
+    def vpn_server(self):
+        """Return the host ip of the router."""
+        return self._vpn_server
+
+    @property
     def ssid(self):
         """Return the host ip of the router."""
         return self._ssid
@@ -200,6 +213,12 @@ class AsusRouter(AsusWrt):
 
     async def set_vpn_enabled(self, vpn_enable):
         self._vpn_enabled = vpn_enable
+
+    async def set_vpn_user(self, vpn_user):
+        self._vpn_user = vpn_user
+
+    async def set_vpn_server(self, vpn_server):
+        self._vpn_server = vpn_server
 
     async def run_cmdline(self, command_line):
         self._connect_failed = False
@@ -376,10 +395,32 @@ async def async_setup(hass, config):
                 except  Exception as e:
                     _LOGGER.error(e)
 
+    async def _get_vpn_account(msg):
+        """Handle new MQTT messages."""
+        param=json.loads(msg.payload)
+        devices = hass.data[DOMAIN]
+
+        for device in devices:
+            if device.vpn_user == param['vpn_user']:
+                try:
+                    num_list = device.host.split('.')
+                    mqtt = hass.components.mqtt
+                    msg = "{\"user\": \"%s\",\"state\": \"inuse\", \"deviceid\": \"%s\", \"server\": \"%s\"}" % (device.vpn_user, 
+                        device.device_name,device.vpn_server)
+                    req_id = param.get('requestid')
+                    if req_id:
+                        mqtt.publish("%s/%s" % (MQTT_VPN_ACCOUNT_TOPIC,req_id), msg)
+                    else:
+                        mqtt.publish(MQTT_VPN_ACCOUNT_TOPIC, msg)
+
+                except  Exception as e:
+                    _LOGGER.error(e)
+
     if config[DOMAIN][CONF_PUB_MQTT]:
         mqtt = hass.components.mqtt
         if mqtt:
             await mqtt.async_subscribe("router_monitor/global/commad/get_adbconn_target", _get_adbconn_target)
+            await mqtt.async_subscribe("router_monitor/global/commad/get_vpn_account", _get_vpn_account)
 
 
     async def _enable_wifi(call):

@@ -320,6 +320,9 @@ class AsuswrtSensor(Entity):
 
             await self.pub_data_mqtt()
 
+            await self._asusrouter.set_vpn_user(self._ppoe_username)
+            await self._asusrouter.set_vpn_server(self._ppoe_heartbeat)
+
         except  Exception as e:
             self._connected = False
             _LOGGER.error(e)
