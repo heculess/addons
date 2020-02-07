@@ -48,27 +48,27 @@ class PowerMonitor:
 
     @property
     def name(self):
-        """Return the name of the ddns."""
+        """Return the name of the PowerMonito."""
         return self._name
 
     @property
     def group_id(self):
-        """Return the name of the ddns."""
+        """Return the name of the PowerMonito."""
         return self._group_id
 
     @property
     def power_key(self):
-        """Return the name of the ddns."""
+        """Return the name of the PowerMonito."""
         return self._power_key
 
     @property
     def max_power(self):
-        """Return the name of the ddns."""
+        """Return the name of the PowerMonito."""
         return self._max_power
 
     @property
     def max_power_conf(self):
-        """Return the name of the ddns."""
+        """Return the name of the PowerMonito."""
         return self._max_power_conf
 
 
