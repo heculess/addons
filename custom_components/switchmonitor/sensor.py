@@ -68,13 +68,13 @@ class SwitchMonitorSensor(Entity):
             id_list = self._hass.states.get(self._monitor.group_id).attributes.get('entity_id')
             current_off_dict = self.get_turn_off_list(id_list)
            
-            self._check_confirm =  await self._monitor.update_turn_off_dict(current_off_dict)
+            self._check_confirm =  await self._monitor.update_state_off_dict(current_off_dict)
 
             if self._check_confirm:
                 self._state = "checked"
             else:
-                self._state = "all on"
+                self._state = "checking"
 
         except  Exception as e:
             _LOGGER.error(e)
-            self._state = "all on"
+            self._state = "check error"
