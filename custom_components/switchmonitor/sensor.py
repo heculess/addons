@@ -41,7 +41,7 @@ class SwitchMonitorSensor(Entity):
     def device_state_attributes(self):
         """Return the state attributes."""	
         return {
-            'state_off_list': self._check_confirm,
+            'state_off_list': self._check_confirm if self._check_confirm else "",
         }
 
     def get_turn_off_list(self,id_list):
