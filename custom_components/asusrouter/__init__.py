@@ -147,7 +147,7 @@ class AsusRouter(AsusWrt):
         self._vpn_enabled = False
         self._vpn_user = False
         self._vpn_server = False
-        self._ssid = None
+        self._ssid = ""
 
     @property
     def device_name(self):
@@ -246,7 +246,7 @@ class AsusRouter(AsusWrt):
         cmd = "nvram set vpnc_pppoe_username= ; nvram set vpnc_pppoe_passwd= ; "\
                    "nvram set vpnc_proto=disable; nvram set wan0_proto=%s ; "\
                    "nvram set wan0_dnsenable_x=1 ; nvram set wan0_dhcpenable_x=1 ; "\
-                   "nvram commit ; service restart_vpncall ; service restart_wan " % (protocol)
+                   "nvram commit ; service restart_vpncall " % (protocol)
         if protocol != "dhcp":
             cmd = "nvram set vpnc_pppoe_username=%s; nvram set vpnc_pppoe_passwd=%s ; "\
                        "nvram set vpnc_proto=%s ; nvram set vpnc_heartbeat_x=%s ; "\
