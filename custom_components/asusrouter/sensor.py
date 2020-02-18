@@ -59,8 +59,7 @@ class AsuswrtSensor(Entity):
         self._initialized = False
         self._asusrouter = asusrouter
         self._reboot = asusrouter.reboot
-        self._wan_ip = ""
-        self._public_ip = ""
+        self._wan_ip = "0.0.0.0"
         self._state = None
         self._rates = 0.0
         self._speed = 0.0
@@ -239,9 +238,9 @@ class AsuswrtSensor(Entity):
             _LOGGER.error(e)
 
         if public_ip:
-            self._public_ip = public_ip
+            await self._asusrouter.set_public_ip(public_ip)
         else:
-            self._public_ip = "0.0.0.0"
+            await self._asusrouter.set_public_ip("0.0.0.0")
 
     async def pub_data_mqtt(self):
         """Get trace router attribute to mqtt."""
@@ -373,7 +372,7 @@ class AsuswrtRouterSensor(AsuswrtSensor):
         return {
             'initialized': self._initialized,
             'wan_ip': self._wan_ip,
-            'public_ip': self._public_ip,
+            'public_ip': self._asusrouter.public_ip,
             'download': self.download,
             'upload': self.upload,
             'download_speed': self.download_speed,

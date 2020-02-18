@@ -148,6 +148,7 @@ class AsusRouter(AsusWrt):
         self._vpn_enabled = False
         self._vpn_user = False
         self._vpn_server = False
+        self._public_ip = "0.0.0.0"
         self._ssid = ""
 
     @property
@@ -169,6 +170,11 @@ class AsusRouter(AsusWrt):
     def pub_mqtt(self):
         """Return the host ip of the router."""
         return  self._pub_mqtt
+
+    @property
+    def public_ip(self):
+        """Return the host ip of the router."""
+        return  self._public_ip
 
     @property
     def add_attribute(self):
@@ -214,6 +220,9 @@ class AsusRouter(AsusWrt):
 
     async def set_vpn_enabled(self, vpn_enable):
         self._vpn_enabled = vpn_enable
+
+    async def set_public_ip(self, public_ip):
+        self._public_ip = public_ip
 
     async def set_vpn_user(self, vpn_user):
         self._vpn_user = vpn_user
@@ -435,15 +444,18 @@ async def async_setup(hass, config):
                     device_id = device.device_name.split('_')
                     if not device_id:
                         continue
-
-                    devices_ip = hass.states.get(device.sr_host_id).attributes.get('public_ip')
-                    if devices_ip == "":
-                        continue
-                    if devices_ip == "0.0.0.0":
-                        continue
                 
-                    if offline_item['id'][0:3] == device_id[1]:
-                        device.reboot()
+                    if offline_item['id'][0:3] != device_id[1]:
+                        continue
+
+                    if device.public_ip == "":
+                        continue
+                    if device.public_ip == "0.0.0.0":
+                        continue
+                    
+                    device.reboot()
+                    _LOGGER.warning("mqtt reboot device %s" % (device_id[1]))
+
 
             except  Exception as e:
                 _LOGGER.error(e)
