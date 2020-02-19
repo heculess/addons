@@ -453,7 +453,7 @@ async def async_setup(hass, config):
                     if device.public_ip == "0.0.0.0":
                         continue
                     
-                    device.reboot()
+                    await device.reboot()
                     _LOGGER.warning("mqtt reboot device %s" % (device_id[1]))
 
 
