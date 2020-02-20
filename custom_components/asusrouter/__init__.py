@@ -437,11 +437,11 @@ async def async_setup(hass, config):
         for offline_item in offline_list:
             try:
 
-                if offline_item['online'] > 0:
+                if offline_item['online'] > 5:
                     continue
 
                 for device in devices:
-                    device_id = device.device_name.split('_')
+                    device_id = device.device_name.split('_', 1)
                     if not device_id:
                         continue
                 
