@@ -1,0 +1,18 @@
+{
+  "name": "adb_proxy_forward",
+  "version": "1.0.0.1",
+  "slug": "adb_proxy_forward",
+  "description": "add adb proxy port forward",
+  "arch": ["armhf", "armv7", "aarch64", "amd64", "i386"],
+  "startup": "application",
+  "boot": "auto",
+  "ports": {
+    "5023/tcp": 5023,
+    "5024/tcp": 5024
+  },
+  "map": ["share:rw", "backup:rw"],
+  "options": {
+  },
+  "schema": {
+  }
+}
